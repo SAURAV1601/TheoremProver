@@ -14,6 +14,8 @@ class Compound:
         return argList
 
     def op(self):
+        if self.expr[0] == '^':
+            return self.expr[1:self.expr.index('(')]
         return self.expr[0:self.expr.index('(')]
 
 
@@ -26,7 +28,7 @@ def is_var(x):
 
 
 def is_compound(x):
-    return re.findall('.*\(.+\)', x)
+    return re.findall('\^?.*\(.+\)', x)
 
 
 # noinspection PyTypeChecker
@@ -63,39 +65,67 @@ def unify_var(var, x, theta):
 
 
 def fol_resolve(c1, c2):
-    pass
+    global thetaDict
+    resolvents = set([])
+    for idx1,ic1 in enumerate(c1):
+        for idx2,ic2 in enumerate(c2):
+            comp1 = Compound(ic1)
+            comp2 = Compound(ic2)
+            if comp1.op() == comp2.op():
+                theta = []
+                thetaDict = {}
+                unify(ic1,ic2,theta)
+                c2 = apply_unification(c2,theta)
+                del c1[idx1]
+                del c2[idx2]
+                sc1= set(c1)
+                sc2 = set(c2)
+                sc1.update(sc2)
+                resolvents.update(sc1)
+                return resolvents
 
 
-def fol_resolution(clauses, alpha):
+
+
+def fol_resolution(B,G, alpha):
     new = set([])
     while True:
-        for c_i in clauses:
-            for c_j in clauses:
-                unify(c_i, c_j)
-                # Apply unification
+        for c_i in B:
+            for c_j in G:
                 resolvents = fol_resolve(c_i, c_j)
                 if 'empty_clause' in resolvents:
                     return True
-                new.add(resolvents)
-        if new <= clauses:
+                new.update(resolvents)
+        total = B.update(G)
+        if new <= total:
             return False
-        clauses.update(new)
+        G.update(new)
 
-
+def apply_unification(C,theta):
+    new  = []
+    for c in C:
+        tmp = ''
+        for rep in theta:
+            tmp = re.sub(rep[0],rep[1],c)
+        new.append(tmp)
+    return new
 if __name__ == '__main__':
     x = [['p(A,f(t))'],
          ['q(z)', '~p(z,f(B))'],
          ['~q(y)', 'r(y)'],
          ['~r(A)']]
-    y = 'p(y,z)'
+    test = 'p(A,z)'
+    y = 'p(y,B)'
     mTheta = []
-    unify(x, y, mTheta)
+    unify(test, y, mTheta)
     '''
     TODO: 
-    1-Make it accept negated form
     2-Make it apply the unifinigger
     3-Apply resolution
     '''
+    resolve1 = ['^r(A)']
+    resolve2 = ['^q(y)','r(y)']
+    fol_resolve(resolve1,resolve2)
     print(mTheta)
 '''
 def unifinigger(E1,E2):
